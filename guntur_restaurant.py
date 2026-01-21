@@ -1,140 +1,152 @@
 import streamlit as st
 import random
-import io
-st.set_page_config(layout="wide")
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+import tempfile
 
-# ========== CSS ==========
+st.set_page_config(page_title="Guntur Hotel", layout="wide")
+
+# ================= CSS =================
 st.markdown("""
 <style>
-.my-marquee {
-    color: #b400c1;
-    font-size: 1.9em;
+.header {
+    color: #7b006b;
+    font-size: 2em;
     font-weight: bold;
-    padding: 6px 0;
-    background: #ffe0fb;
-    border-radius: 10px;
-    margin-bottom: 8px;
+    background: #ffe6fb;
+    padding: 10px;
+    border-radius: 12px;
+    text-align: center;
 }
-.bill-table td, .bill-table th {
-    background: #fff4fc !important;
-    color: #32024f !important;
+.invoice-box {
+    background: #fff4fc;
+    padding: 20px;
+    border-radius: 15px;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# ========== WELCOME ==========
-st.markdown("""
-<div class="my-marquee">
-<marquee>🎉 Welcome to Guntur Hotel! 🍽️ Enjoy your meal! 🎉</marquee>
-</div>
-""", unsafe_allow_html=True)
+# ================= HEADER =================
+st.markdown('<div class="header">🍽️ Welcome to Guntur Hotel</div>', unsafe_allow_html=True)
 
-# ========== MENU ==========
-menu = {
-    'Tea':20,'Coffee':50,'Samosa':20,'Gulab Jamun':30,'Jalebi':30,'Khichdi':70,
-    'Chicken Biryani':150,'Mutton Biryani':300,'Jumbo Bucket Biryani':500,
-    'Water Bottle':20,'Thums Up':50,'Pepsi':50,'Coke':70,'Limca':50,
-    'Veg Biryani':120,'Chicken or Veg Pizza':150,'Burger':50
+# ================= MENU =================
+MENU = {
+    "Beverages ☕": {
+        "Tea": 20, "Coffee": 50, "Coke": 70, "Pepsi": 50, "Water Bottle": 20
+    },
+    "Snacks 🍔": {
+        "Samosa": 20, "Burger": 50, "Gulab Jamun": 30, "Jalebi": 30
+    },
+    "Main Course 🍛": {
+        "Veg Biryani": 120,
+        "Chicken Biryani": 150,
+        "Mutton Biryani": 300,
+        "Jumbo Bucket Biryani": 500,
+        "Pizza": 150
+    }
 }
 
-# ========== QUOTES ==========
-quotes = [
-    "Enjoy your meal and have a great day!",
-    "The secret ingredient is always love.",
-    "Food is happiness on a plate.",
-    "Good food makes good mood!",
-    "Savor every bite!",
-    "Great choices! Your appetite thanks you.",
-    "A flavorful journey awaits.",
-    "Happiness is homemade.",
-    "Life is short, eat dessert first.",
-    "Good friends, good food, good times!",
-    "Taste the joy in every dish.",
-    "Fresh flavors, happy hearts.",
-    "May your plate always be full.",
-    "Every meal is a celebration!",
-    "Let the feast begin!",
-    "Bon appétit – taste the magic!",
-    "Nourish your soul with goodness.",
-    "Delicious moments ahead.",
-    "Wholesome bites for a happy life.",
-    "Eat well, laugh often, love much.",
-    "Welcome to your happy place!",
-    "Where taste meets tradition.",
-    "Eating well is a form of self-respect.",
-    "Raise your forks for good fortune!",
-    "May your cravings always be satisfied.",
-    "Good things come to those who eat!",
-    "Treat yourself to greatness.",
-    "Life happens, food helps.",
-    "You’re one bite away from a good mood.",
-    "Let delicious memories be made today."
+QUOTES = [
+    "Good food, good mood 🍽️",
+    "Life is short, eat well 😋",
+    "Every meal is a celebration 🎉",
+    "Food tastes better when shared ❤️"
 ]
 
-# ========== LAYOUT ==========
+# ================= SESSION STATE =================
+if "order" not in st.session_state:
+    st.session_state.order = {}
+
+# ================= LAYOUT =================
 left, right = st.columns(2, gap="large")
 
-# ----------- MENU LEFT -----------
+# -------- MENU --------
 with left:
-    st.title("📋 Menu")
-    for item, price in menu.items():
-        col1, col2 = st.columns([3,1])
-        with col1:
-            st.write(f"**{item}**")
-        with col2:
-            st.write(f"₹{price}")
+    st.subheader("📋 Menu")
+    for category, items in MENU.items():
+        st.markdown(f"### {category}")
+        for item, price in items.items():
+            st.write(f"**{item}** — ₹{price}")
 
-# ---------- ORDER RIGHT ----------
+# -------- ORDER --------
 with right:
-    st.title("🛒 Place Your Order")
-    order_item = st.selectbox("Select a food item:", list(menu.keys()))
-    order_qty = st.number_input(f"How many plates of {order_item}?", min_value=1, max_value=10, step=1)
+    st.subheader("🛒 Place Your Order")
 
-    # Show a random quote every time the order section is visible or rerun
-    quote = random.choice(quotes)
-    st.info(quote)
+    category = st.selectbox("Select Category", list(MENU.keys()))
+    item = st.selectbox("Select Item", list(MENU[category].keys()))
+    qty = st.number_input("Quantity", 1, 10, 1)
 
-    if "order" not in st.session_state:
-        st.session_state.order = {}
+    st.info(random.choice(QUOTES))
 
-    if st.button("Add to Order", key="addorderbtn"):
-        if order_item in st.session_state.order:
-            st.session_state.order[order_item] += order_qty
-        else:
-            st.session_state.order[order_item] = order_qty
-        st.success(f"✅ {order_qty} × {order_item} added!")
+    if st.button("➕ Add to Order"):
+        st.session_state.order[item] = st.session_state.order.get(item, 0) + qty
+        st.success(f"{qty} × {item} added")
 
-# --------- BILL SECTION (Below) -------------
+# ================= INVOICE =================
 if st.session_state.order:
     st.markdown("---")
-    st.subheader("🧾 Your Bill")
-    bill_items = []
-    total = 0
+    st.subheader("🧾 Invoice")
 
-    bill_text = "----- Your Bill -----\n\n"
-    for food, qty in st.session_state.order.items():
-        amount = menu[food] * qty
-        total += amount
-        bill_items.append([food, qty, menu[food], amount])
-        bill_text += f"{food:20} x{qty:<2} ₹{menu[food]:<3} ₹{amount}\n"
+    invoice_data = [["Item", "Qty", "Price", "Total"]]
+    subtotal = 0
 
-    bill_text += f"\nGrand Total: ₹{total}\n"
+    for item, qty in st.session_state.order.items():
+        price = next(MENU[c][item] for c in MENU if item in MENU[c])
+        total = price * qty
+        subtotal += total
+        invoice_data.append([item, qty, f"₹{price}", f"₹{total}"])
 
-    st.markdown(
-        "<table class='bill-table'><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>" +
-        "".join([f"<tr><td>{i[0]}</td><td>{i[1]}</td><td>₹{i[2]}</td><td>₹{i[3]}</td></tr>" for i in bill_items]) +
-        "</table>",
-        unsafe_allow_html=True
-    )
-    st.write(f"### 💰 Grand Total: **₹{total}**")
+    gst = subtotal * 0.05
+    discount = 50 if subtotal >= 500 else 0
+    grand_total = subtotal + gst - discount
 
-    # ----- Download bill button -----
-    bill_file = io.StringIO(bill_text)
-    st.download_button(label="Download Bill", data=bill_file.getvalue(), file_name="Guntur_Bill.txt", mime="text/plain")
+    invoice_data.extend([
+        ["", "", "Subtotal", f"₹{subtotal}"],
+        ["", "", "GST (5%)", f"₹{gst:.2f}"],
+        ["", "", "Discount", f"-₹{discount}"],
+        ["", "", "Grand Total", f"₹{grand_total:.2f}"]
+    ])
 
-    if st.button("Clear Order", key="clearbtn"):
-        st.session_state.order = {}
-        st.warning("Order cleared!")
+    st.markdown('<div class="invoice-box">', unsafe_allow_html=True)
+    st.table(invoice_data)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown("### ✅ Thank you! Visit Again 😊")
+    # ================= PDF INVOICE =================
+    def generate_pdf():
+        file = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+        doc = SimpleDocTemplate(file.name, pagesize=A4)
+        styles = getSampleStyleSheet()
+
+        elements = [
+            Paragraph("🧾 Guntur Hotel Invoice", styles["Title"]),
+            Paragraph("Thank you for dining with us!", styles["Normal"]),
+        ]
+
+        table = Table(invoice_data)
+        table.setStyle(TableStyle([
+            ("GRID", (0,0), (-1,-1), 1, colors.purple),
+            ("BACKGROUND", (0,0), (-1,0), colors.lavender),
+            ("ALIGN", (1,1), (-1,-1), "CENTER")
+        ]))
+
+        elements.append(table)
+        doc.build(elements)
+        return file.name
+
+    pdf_path = generate_pdf()
+    with open(pdf_path, "rb") as f:
+        st.download_button("📥 Download Invoice (PDF)", f, file_name="Guntur_Invoice.pdf")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("❌ Clear Order"):
+            st.session_state.order = {}
+            st.experimental_rerun()
+
+    with col2:
+        st.success("✅ Order Ready!")
+
+st.markdown("### 😊 Thank you! Visit Again")
 st.balloons()
